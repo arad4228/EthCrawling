@@ -1,6 +1,8 @@
+# 설정 파일을 불러오기
 from CrawlingConfig import cookies
 from CrawlingConfig import headers
 from CrawlingConfig import params
+from CrawlingConfig import data
 
 import pandas as pd
 import requests
@@ -16,9 +18,10 @@ base_Url = "https://etherscan.io/txs"
 index = 1
 max_Index = 10000
 
-response = requests.get(base_Url, params=params, cookies=cookies, headers=headers)
+# 50 to 100 Crawling
+response = requests.get(base_Url, params=params, cookies=cookies, headers=headers, data=data)
 
-for page in range(max_Index):
+for page in range(1):
     # html 파일 받기
     response = requests.get(base_Url, params=params, cookies=cookies, headers=headers)
     text = response.text
@@ -33,11 +36,14 @@ for page in range(max_Index):
     # <a href="\/address[\w/]*" class="[[\w\s-]*]?" [\w\s=":-]*(<br\/>\([\w]*\))?">
     # 최종: <a href="\/address[\w/]*" class="(hash-tag text-truncate)?"[\s\w=:"!@#$%^&*_=+~`.()-]*(<br\/>\(\w*\)")?>
     # 최종: <a href="\/address[\w/]*" class="(hash-tag text-truncate)?"[\s\w=:"!@#$%^&*_=+~`.()-]*(<br\/>\(\w*\)")?
+    # 위 정규식의 문제점은 내부의 하나만 문제가 발생해도 안긁힘.(수정이 필요하다.)
+    # 현재 적용: <a href="\/address[\w/]*"[\w\s!@#$%%^&*()_,.<>/"'+:;=-]*<\/a>
     address_List = re.finditer(
-        r'<a href="\/address[\w/]*" class="(hash-tag text-truncate)?"[\s\w=:"!@#$%^&*_=+~`.()-]*(<br\/>\(\w*\)")?',
+        r'<a href="\/address[\w/]*"[\w\s!@#$%%^&*()_,.<>/\"\'+:;=-]*<\/a>',
         text)
 
     element = 0
+
     for address in address_List:
         # group을 통해서 찾은 결과 접근
         matched_str = address.group()
