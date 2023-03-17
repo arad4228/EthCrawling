@@ -1,0 +1,16 @@
+# Pycham File
+.idea
+.idea/*
+
+# Python Virtual env
+venv
+venv/*
+
+# Crawling result CSV
+Ethereum_Transaction.csv
+
+# Debugging html
+index.html
+
+# Crawling Config
+CrawlingConfig.py
