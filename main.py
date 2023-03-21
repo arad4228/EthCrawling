@@ -29,7 +29,13 @@ for page in range(5):
         'p': index,
     }
 
-    response = requests.get(base_Url, params=params, cookies=cookies, headers=headers, data=data)
+    try:
+        response = requests.get(base_Url, params=params, cookies=cookies, headers=headers, data=data)
+    except requests.exceptions.ConnectionError as errc:
+        print("Error Connecting : ", errc)
+        time.sleep(10)
+        continue
+
     text = remove_Emoji(response.text)
     print("Page: " + str(index) + " Reading")
     # 파일 단위 저장기능(for Debug)
