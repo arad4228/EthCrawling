@@ -44,7 +44,7 @@ def refine_crawling_data(page):
     i = 0
     soup = bs(page, "html.parser")
     # tr Tag는 Etherscan에서 표 하나의 열을 나타낸다.
-    tr_list = soup.select('tr')
+    tr_list = soup.select('tr')[1:]
     for tr in tr_list:
         # Debugging
         i += 1
@@ -53,7 +53,8 @@ def refine_crawling_data(page):
             # tx_data = re.search(
             #     r'(<span class="text-danger"[\w\s!@#$%%^&*()_,.<>/\"\'+:;=-]*<\/span>\s)?<span class="hash-tag text-truncate">\s?<a class=[\w\s!@#$%%^&*()_,.>/\"\'+:;=-]*<\/a>',
             #     page_text)
-            # 표의 정보가 있는 행일 경우 건너 뛴다.
+            # 만약에 표의 구성 정보가 들어왔다면 건너뛰는 연산을 진행한다.
+            # 그러나 실제 동작하지 않을 것이지만 예방 차원에서 확인
             first_row_checker = tr.find('td')
             if first_row_checker is None:
                 raise First_Row("페이지의 데이터 표의 첫번째 행입니다.")
@@ -81,9 +82,10 @@ def refine_crawling_data(page):
                 continue
 
                 # From, To Address
-                address_iter = re.finditer(r'<a href="\/address[\w/]*"[\w\s!@#$%%^&*()_,.<>/\"\'+:;=-]*<\/a>', page_text)
-                address_from = address_iter.__next__()
-                address_to = address_iter.__next__()
+                # address_iter = re.finditer(r'<a href="\/address[\w/]*"[\w\s!@#$%%^&*()_,.<>/\"\'+:;=-]*<\/a>', page_text)
+                # address_from = address_iter.__next__()
+                # address_to = address_iter.__next__()
+                address_list = tr.find('a', {'class': 'js-clipboard link-secondary'})['data-bs-title']
 
                 if address_from or address_to is None:
                     raise Empty_Data(tx_address+"의 From, To address가 정상적으로 인식되지 않았습니다")
