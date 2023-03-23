@@ -35,12 +35,20 @@ class Empty_Data(Exception):
         return self.msg
 
 
+# error가 발생하는 데이터만 저장하는 함수
+def sava_error_data(error_data):
+    test_html = open("error.html", "a", encoding='utf8')
+    test_html.write(error_data)
+    test_html.close()
+
+
 # 이모지 제거함수
 def remove_emoji(inputData):
     return inputData.encode('utf-8', 'ignore').decode('utf-8')
 
 
 def refine_crawling_data(page):
+    global refine_address_from, refine_address_from_tag, refine_address_to, refine_address_to_tag
     i = 0
     soup = bs(page, "html.parser")
     # tr Tag는 Etherscan에서 표 하나의 열을 나타낸다.
@@ -61,14 +69,11 @@ def refine_crawling_data(page):
 
             # 데이터가 있는 행일 경우
             else:
-                print(tr)
-                print("tr 끝")
                 # TX Address (정규표현식 --> bs4)
                 # tx_address = re.search(r'tx[\w/]*', tx_data.group()).group().replace('tx/', '')
                 tx_address = tr.find('a').text
                 if tx_address is None:
                     raise Empty_Data(tr + "에서 TX Address를 찾지 못했습니다.")
-                print(tx_address)
 
                 # Status Data를 확인하기 위한 정규 표현식
                 # check_status = re.search(r'<span class="text-danger"[\w\s!@#$%%^&*()_,.<>/\"\'+:;=-]*<\/span>\s', tx_data.group())
@@ -78,41 +83,36 @@ def refine_crawling_data(page):
                 else:
                     refine_check_status = check_status['data-bs-title']
 
-                print(refine_check_status)
-                continue
-
                 # From, To Address
                 # address_iter = re.finditer(r'<a href="\/address[\w/]*"[\w\s!@#$%%^&*()_,.<>/\"\'+:;=-]*<\/a>', page_text)
                 # address_from = address_iter.__next__()
                 # address_to = address_iter.__next__()
-                address_list = tr.find('a', {'class': 'js-clipboard link-secondary'})['data-bs-title']
+                address_list = tr.find_all('a', {'data-bs-html': 'true'})
+                # for add in address_list:
+                #     print(add)
 
-                if address_from or address_to is None:
-                    raise Empty_Data(tx_address+"의 From, To address가 정상적으로 인식되지 않았습니다")
+                if len(address_list) != 2:
+                    sava_error_data(str(tr))
+                    raise Empty_Data(tx_address +"에 대한 From, To address를 긁지 못했습니다.")
 
-                refine_address_from =  re.search(r'address[\w/]*', address_from.group()).group().replace('address/', '')
-                check_address_from_tag = re.search(r'data-bs-title="(Public Tag: )?[\w\s.:!@#$%^&_=+,/?-]*', address_from.group())\
-                    .group().replace('data-bs-title="', '')
-                refine_address_from_tag = ""
-
-                refine_address_to =  re.search(r'address[\w/]*', address_to.group()).group().replace('address/', '')
-                check_address_to_tag = re.search(r'data-bs-title="(Public Tag: )?[\w\s.:!@#$%^&_=+,/?-]*',
-                                                   address_to.group()) \
-                    .group().replace('data-bs-title="', '')
-                refine_address_to_tag = ""
-
-                if check_address_from_tag != refine_address_from:
-                    refine_address_from_tag.join(check_address_from_tag)
-                else:
-                    refine_address_from_tag.join("Nope")
-
-                if check_address_to_tag != refine_address_to:
-                    refine_address_to_tag.join(check_address_to_tag)
-                else:
-                    refine_address_to_tag.join("Nope")
+                for address in address_list:
+                    # From
+                    if address_list.index(address) == 0:
+                        refine_address_from = address['href'].replace('/address/','')
+                        address_from_tag = address['data-bs-title']
+                        refine_address_from_tag = re.sub(r'(<br\/>)?\([\w]*\)','', address_from_tag)
+                        if refine_address_from_tag == refine_address_from:
+                            refine_address_from_tag = "None"
+                    # To
+                    else:
+                        refine_address_to = address['href'].replace('/address/', '')
+                        address_to_tag = address['data-bs-title']
+                        refine_address_to_tag = re.sub(r'(<br\/>)?\([\w]*\)','', address_to_tag)
+                        if refine_address_to_tag == refine_address_to:
+                            refine_address_to_tag = "None"
 
                 TX_List.append(tx_address)
-                TX_Status_List.append()
+                TX_Status_List.append(refine_check_status)
                 From_List.append(refine_address_from)
                 From_Tag_List.append(refine_address_from_tag)
                 To_List.append(refine_address_to)
