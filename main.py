@@ -1,5 +1,6 @@
 # 설정 파일을 불러오기
 from CrawlingConfig import *
+from EthExceptions import *
 
 import requests
 from bs4 import BeautifulSoup as bs
@@ -16,23 +17,7 @@ To_Tag_List = []
 
 base_Url = "https://etherscan.io/txs"
 index = 1
-max_Index = 4
-
-
-class First_Row(Exception):
-    def __init__(self, msg):
-        self.msg = msg
-
-    def __str__(self):
-        return self.msg
-
-
-class Empty_Data(Exception):
-    def __init(self, msg):
-        self.msg = msg
-
-    def __str(self):
-        return self.msg
+max_Index = 5000
 
 
 # error가 발생하는 데이터만 저장하는 함수
@@ -42,6 +27,9 @@ def sava_error_data(error_data):
     test_html.close()
 
 
+def print_all_data_count():
+    print("TXN: " + str(len(TX_List)) + " TX_Status: " + str(len(TX_Status_List)) + " From: " + str(len(From_List)) + " From_Tags: " + str(len(From_Tag_List)) + " To: " + str(len(To_List)) + " To_Tags: " + str(len(To_Tag_List)))
+
 # 이모지 제거함수
 def remove_emoji(inputData):
     return inputData.encode('utf-8', 'ignore').decode('utf-8')
@@ -49,18 +37,13 @@ def remove_emoji(inputData):
 
 def refine_crawling_data(page):
     global refine_address_from, refine_address_from_tag, refine_address_to, refine_address_to_tag
-    i = 0
+
     soup = bs(page, "html.parser")
     # tr Tag는 Etherscan에서 표 하나의 열을 나타낸다.
     tr_list = soup.select('tr')[1:]
-    for tr in tr_list:
-        # Debugging
-        i += 1
 
+    for tr in tr_list:
         try:
-            # tx_data = re.search(
-            #     r'(<span class="text-danger"[\w\s!@#$%%^&*()_,.<>/\"\'+:;=-]*<\/span>\s)?<span class="hash-tag text-truncate">\s?<a class=[\w\s!@#$%%^&*()_,.>/\"\'+:;=-]*<\/a>',
-            #     page_text)
             # 만약에 표의 구성 정보가 들어왔다면 건너뛰는 연산을 진행한다.
             # 그러나 실제 동작하지 않을 것이지만 예방 차원에서 확인
             first_row_checker = tr.find('td')
@@ -69,14 +52,11 @@ def refine_crawling_data(page):
 
             # 데이터가 있는 행일 경우
             else:
-                # TX Address (정규표현식 --> bs4)
-                # tx_address = re.search(r'tx[\w/]*', tx_data.group()).group().replace('tx/', '')
+                # TX Address
                 tx_address = tr.find('a').text
                 if tx_address is None:
                     raise Empty_Data(tr + "에서 TX Address를 찾지 못했습니다.")
 
-                # Status Data를 확인하기 위한 정규 표현식
-                # check_status = re.search(r'<span class="text-danger"[\w\s!@#$%%^&*()_,.<>/\"\'+:;=-]*<\/span>\s', tx_data.group())
                 check_status = tr.find('span', {'class': 'text-danger'})
                 if check_status is None or check_status['data-bs-title'] is None:
                     refine_check_status = "None"
@@ -84,12 +64,7 @@ def refine_crawling_data(page):
                     refine_check_status = check_status['data-bs-title']
 
                 # From, To Address
-                # address_iter = re.finditer(r'<a href="\/address[\w/]*"[\w\s!@#$%%^&*()_,.<>/\"\'+:;=-]*<\/a>', page_text)
-                # address_from = address_iter.__next__()
-                # address_to = address_iter.__next__()
                 address_list = tr.find_all('a', {'data-bs-html': 'true'})
-                # for add in address_list:
-                #     print(add)
 
                 if len(address_list) != 2:
                     sava_error_data(str(tr))
@@ -117,7 +92,6 @@ def refine_crawling_data(page):
                 From_Tag_List.append(refine_address_from_tag)
                 To_List.append(refine_address_to)
                 To_Tag_List.append(refine_address_to_tag)
-                print("데이터 저장완료")
 
         except First_Row as FR:
             print(FR)
@@ -130,7 +104,9 @@ def refine_crawling_data(page):
 
 if __name__ == "__main__":
     # 원하는 페이지까지 데이터를 받기
-    for page in range(1):
+    for page in range(max_Index):
+        before_count = [len(TX_List), len(TX_Status_List), len(From_List), len(From_Tag_List), len(To_List), len(To_Tag_List)]
+
         # Base_Url에서 Data수와 page 갯수를 넘겨주기 위한 파라미터
         params = \
             {
@@ -139,26 +115,28 @@ if __name__ == "__main__":
             }
 
         try:
-            # response = requests.get(base_Url, params=params, cookies=cookies, headers=headers, data=data)
-            # text = remove_emoji(response.text)
-            #
+            response = requests.get(base_Url, params=params, cookies=cookies, headers=headers, data=data)
+            text = remove_emoji(response.text)
+
             # # Debugging
             # test_html = open("index.html", "w", encoding='utf8')
             # test_html.write(text)
             # test_html.close()
-            text = open("TXntest.html","r")
-
             refine_crawling_data(text)
+            print(str(page)+" page가 완료되었습니다.")
+            print_all_data_count()
+            after_count = [len(TX_List), len(TX_Status_List), len(From_List), len(From_Tag_List), len(To_List), len(To_Tag_List)]
+            if before_count == after_count:
+                raise Refused_Connection("지나친 요청으로 인해 " + str(page)+" 페이지에 대한 요청이 거절되었습니다.")
+
         except requests.exceptions.ConnectionError as err:
             print("Error Connecting : ", err)
-            time.sleep(20)
+            time.sleep(10)
             continue
-
-        # 3페이지 이후 5초 휴식
-        # if page % 3 == 0:
-        #     time.sleep(5)
-        #     print("Sleep 5 sec")
-        # print("Current Page is " + str(page) + " Done")
+        except Refused_Connection as RC:
+            print(RC)
+            time.sleep(10)
+            continue
         index += 1
 
     Ethereum_CSV = pd.DataFrame(
