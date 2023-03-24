@@ -1,5 +1,5 @@
 # EthCrawling
-EtherScan Crawer
+EtherScan Crawer for Educations
 
 This is a crawler made for research purposes.
 
