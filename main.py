@@ -17,7 +17,8 @@ To_Tag_List = []
 
 base_Url = "https://etherscan.io/txs"
 index = 1
-max_Index = 5000
+max_Index = 10
+error_element = 0
 
 
 # error가 발생하는 데이터만 저장하는 함수
@@ -30,13 +31,14 @@ def sava_error_data(error_data):
 def print_all_data_count():
     print("TXN: " + str(len(TX_List)) + " TX_Status: " + str(len(TX_Status_List)) + " From: " + str(len(From_List)) + " From_Tags: " + str(len(From_Tag_List)) + " To: " + str(len(To_List)) + " To_Tags: " + str(len(To_Tag_List)))
 
+
 # 이모지 제거함수
-def remove_emoji(inputData):
-    return inputData.encode('utf-8', 'ignore').decode('utf-8')
+def remove_emoji(input_data):
+    return input_data.encode('utf-8', 'ignore').decode('utf-8')
 
 
 def refine_crawling_data(page):
-    global refine_address_from, refine_address_from_tag, refine_address_to, refine_address_to_tag
+    global refine_address_from, refine_address_from_tag, refine_address_to, refine_address_to_tag, error_element
 
     soup = bs(page, "html.parser")
     # tr Tag는 Etherscan에서 표 하나의 열을 나타낸다.
@@ -68,6 +70,7 @@ def refine_crawling_data(page):
 
                 if len(address_list) != 2:
                     sava_error_data(str(tr))
+                    error_element += 1
                     raise Empty_Data(tx_address +"에 대한 From, To address를 긁지 못했습니다.")
 
                 for address in address_list:
@@ -76,6 +79,7 @@ def refine_crawling_data(page):
                         refine_address_from = address['href'].replace('/address/','')
                         address_from_tag = address['data-bs-title']
                         refine_address_from_tag = re.sub(r'(<br\/>)?\([\w]*\)','', address_from_tag)
+                        refine_address_from_tag = re.sub(r'\s+<div>\([\w\s~`!@#$%^&*\(\)_+={}\[\];:\'\",<.>?/-]*', '', refine_address_from_tag)
                         if refine_address_from_tag == refine_address_from:
                             refine_address_from_tag = "None"
                     # To
@@ -83,6 +87,7 @@ def refine_crawling_data(page):
                         refine_address_to = address['href'].replace('/address/', '')
                         address_to_tag = address['data-bs-title']
                         refine_address_to_tag = re.sub(r'(<br\/>)?\([\w]*\)','', address_to_tag)
+                        refine_address_to_tag = re.sub(r'\s+<div>\([\w\s~`!@#$%^&*\(\)_+={}\[\];:\'\",<.>?/-]*', '', refine_address_to_tag)
                         if refine_address_to_tag == refine_address_to:
                             refine_address_to_tag = "None"
 
@@ -131,11 +136,11 @@ if __name__ == "__main__":
 
         except requests.exceptions.ConnectionError as err:
             print("Error Connecting : ", err)
-            time.sleep(10)
+            time.sleep(5)
             continue
         except Refused_Connection as RC:
             print(RC)
-            time.sleep(10)
+            time.sleep(5)
             continue
         index += 1
 
@@ -149,7 +154,8 @@ if __name__ == "__main__":
             'TO_TAG': To_Tag_List
         }
     )
-    Ethereum_CSV.to_csv('./Ethereum_Transaction.csv', index=True)
+    Ethereum_CSV.to_csv('./Ethereum_Transaction.csv', index=True, encoding="utf-8")
+    print(str(error_element)+"갯수의 데이터를 긁지 못했습니다.")
 
 
 
